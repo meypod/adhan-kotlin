@@ -4,6 +4,7 @@ import com.batoulapps.adhan2.CalculationMethod.DUBAI
 import com.batoulapps.adhan2.CalculationMethod.EGYPTIAN
 import com.batoulapps.adhan2.CalculationMethod.KARACHI
 import com.batoulapps.adhan2.CalculationMethod.KUWAIT
+import com.batoulapps.adhan2.CalculationMethod.MOROCCO
 import com.batoulapps.adhan2.CalculationMethod.MOON_SIGHTING_COMMITTEE
 import com.batoulapps.adhan2.CalculationMethod.MUSLIM_WORLD_LEAGUE
 import com.batoulapps.adhan2.CalculationMethod.NORTH_AMERICA
@@ -72,6 +73,12 @@ class CalculationMethodTest {
     assertTrue { abs(params.ishaAngle - 0) <= 0.000001 }
     assertEquals(90, params.ishaInterval)
     assertEquals(QATAR, params.method)
+
+    params = MOROCCO.parameters
+    assertTrue { abs(params.fajrAngle - 19) <= 0.000001 }
+    assertTrue { abs(params.ishaAngle - 17) <= 0.000001 }
+    assertEquals(0, params.ishaInterval)
+    assertEquals(MOROCCO, params.method)
 
     params = OTHER.parameters
     assertTrue { abs(params.fajrAngle - 0) <= 0.000001 }

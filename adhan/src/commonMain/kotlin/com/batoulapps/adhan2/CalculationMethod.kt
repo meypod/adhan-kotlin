@@ -75,6 +75,12 @@ enum class CalculationMethod {
   TURKEY,
 
   /**
+   * Ministry of Habous and Islamic Affairs, Morocco
+   * Uses a Fajr angle of 19 and an Isha angle of 17
+   */
+  MOROCCO,
+
+  /**
    * The default value for [CalculationParameters.method] when initializing a
    * [CalculationParameters] object. Sets a Fajr angle of 0 and an Isha angle of 0.
    */
@@ -134,6 +140,11 @@ enum class CalculationMethod {
       TURKEY -> {
         CalculationParameters(fajrAngle = 18.0, ishaAngle = 17.0, method = this,
           methodAdjustments = PrayerAdjustments(sunrise = -7, dhuhr = 5, asr = 4, maghrib = 7)
+        )
+      }
+      MOROCCO -> {
+        CalculationParameters(fajrAngle = 19.0, ishaAngle = 17.0, method = this,
+          methodAdjustments = PrayerAdjustments(dhuhr = 1)
         )
       }
       OTHER -> {
