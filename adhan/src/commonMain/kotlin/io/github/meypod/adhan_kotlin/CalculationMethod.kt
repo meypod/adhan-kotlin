@@ -102,9 +102,25 @@ enum class CalculationMethod {
 
   /**
    * Diyanet İşleri Başkanlığı, Turkey
-   * Uses a Fajr angle of 18 and an Isha angle of 17
+   * Uses a Fajr angle of 18 and an Isha angle of 17, Diyanet's 7 minute "temkin" on sunrise and
+   * maghrib, and its high latitude "takdir" ([HighLatitudeRule.PROPORTIONAL_DEPRESSION]).
+   *
+   * This matches the calendars Diyanet publishes for Turkey and for the countries that follow
+   * its 17° convention (among others Spain, Greece, Bulgaria, Albania, Azerbaijan, Egypt).
+   * For Diyanet's European calendars use [TURKEY_EUROPE], which differs only in the Isha angle.
    */
   TURKEY,
+
+  /**
+   * Diyanet İşleri Başkanlığı, European calendars
+   * Identical to [TURKEY] except that Isha uses an angle of 16 rather than 17.
+   *
+   * Diyanet publishes 16° for most of Europe — Germany, France, Italy, the Benelux, Austria,
+   * Switzerland, the Nordics, the United Kingdom and the western Balkans among them — while
+   * Turkey and a number of other countries keep 17°. Verify against the calendar for the
+   * country in question if the difference (roughly 8 minutes) matters.
+   */
+  TURKEY_EUROPE,
 
   /**
    * Spiritual Administration of Muslims of Russia
@@ -242,9 +258,14 @@ enum class CalculationMethod {
         CalculationParameters(fajrAngle = 18.0, ishaAngle = 18.0, method = this)
       }
 
-      TURKEY -> {
+      TURKEY, TURKEY_EUROPE -> {
         CalculationParameters(
-            fajrAngle = 18.0, ishaAngle = 17.0, method = this,
+            fajrAngle = 18.0,
+            ishaAngle = if (this == TURKEY_EUROPE) 16.0 else 17.0,
+            method = this,
+            highLatitudeRule = HighLatitudeRule.PROPORTIONAL_DEPRESSION,
+            // Diyanet holds the declination at 0h rather than interpolating it to each event
+            interpolateDeclination = false,
             methodAdjustments = PrayerAdjustments(
                 sunrise = -7,
                 dhuhr = 5,

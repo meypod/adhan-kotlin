@@ -259,11 +259,15 @@ internal object Astronomical {
    * @param δ2 the declination
    * @param δ1 the previous declination
    * @param δ3 the next declination
+   * @param interpolateDeclination whether to interpolate the declination to the moment of the
+   *   event. Astronomical Algorithms does; some published calendars hold it at 0h instead, which
+   *   moves sunset and evening twilight by up to two minutes around the equinoxes.
    * @return the corrected hour angle
    */
   fun correctedHourAngle(
     m0: Double, h0: Double, coordinates: Coordinates, afterTransit: Boolean,
-    Θ0: Double, α2: Double, α1: Double, α3: Double, δ2: Double, δ1: Double, δ3: Double
+    Θ0: Double, α2: Double, α1: Double, α3: Double, δ2: Double, δ1: Double, δ3: Double,
+    interpolateDeclination: Boolean = true
   ): Double {
     /* Equation from page Astronomical Algorithms 102 */
     val Lw = coordinates.longitude * -1
@@ -277,9 +281,11 @@ internal object Astronomical {
         α2,  /* previousValue */α1,  /* nextValue */α3,  /* factor */m
       )
     )
-    val δ = interpolate( /* value */δ2,  /* previousValue */δ1,  /* nextValue */
-      δ3,  /* factor */m
-    )
+    val δ = if (interpolateDeclination) {
+      interpolate( /* value */δ2,  /* previousValue */δ1,  /* nextValue */δ3,  /* factor */m)
+    } else {
+      δ2
+    }
     val H = θ - Lw - α
     val h = altitudeOfCelestialBody( /* observerLatitude */coordinates.latitude,  /* declination */
       δ,  /* localHourAngle */H

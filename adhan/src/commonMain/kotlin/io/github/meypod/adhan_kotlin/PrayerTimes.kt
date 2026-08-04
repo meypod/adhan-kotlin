@@ -16,6 +16,7 @@ import io.github.meypod.adhan_kotlin.data.CalendarUtil.toUtcInstant
 import io.github.meypod.adhan_kotlin.data.DateComponents
 import io.github.meypod.adhan_kotlin.data.TimeComponents
 import io.github.meypod.adhan_kotlin.internal.SolarTime
+import io.github.meypod.adhan_kotlin.internal.TakdirTable
 import io.github.meypod.adhan_kotlin.model.Shafaq
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -66,7 +67,8 @@ data class PrayerTimes(
     val tomorrowDate: LocalDateTime = add(prayerDate, 1, DateTimeUnit.DAY)
     var tomorrow: DateComponents = DateComponents.fromLocalDateTime(tomorrowDate)
 
-    var solarTime = SolarTime(dateComponents, coordinates)
+    val interpolateDeclination = calculationParameters.interpolateDeclination
+    var solarTime = SolarTime(dateComponents, coordinates, interpolateDeclination)
     var timeComponents = TimeComponents.fromDouble(solarTime.transit)
     var transit = timeComponents?.dateComponents(dateComponents)
 
@@ -76,13 +78,15 @@ data class PrayerTimes(
     timeComponents = TimeComponents.fromDouble(solarTime.sunset)
     var sunsetComponents = timeComponents?.dateComponents(dateComponents)
 
-    var tomorrowSolarTime = SolarTime(tomorrow, coordinates)
+    var tomorrowSolarTime = SolarTime(tomorrow, coordinates, interpolateDeclination)
     var tomorrowSunriseComponents = TimeComponents.fromDouble(tomorrowSolarTime.sunrise)
 
     val polarCircleResolver = calculationParameters.polarCircleResolution
     if ((sunriseComponents == null || sunsetComponents == null || tomorrowSolarTime.sunrise.isNaN())
       && polarCircleResolver != PolarCircleResolution.Unresolved) {
-      val resolved = resolvePolarCircleValues(polarCircleResolver, dateComponents, coordinates)
+      val resolved = resolvePolarCircleValues(
+        polarCircleResolver, dateComponents, coordinates, interpolateDeclination
+      )
 
       coordinates = resolved.coordinates
       solarTime = resolved.solarTime
@@ -99,6 +103,46 @@ data class PrayerTimes(
 
       tomorrowSolarTime = resolved.tomorrowSolarTime
       tomorrowSunriseComponents = TimeComponents.fromDouble(tomorrowSolarTime.sunrise)
+    }
+
+    var fiveHourFloorApplied = false
+    // Diyanet floors both the day and the night at five hours, placing sunrise and maghrib
+    // symmetrically about Ogle. This defines them outright inside the polar circle, where the
+    // sun may not rise or set at all, so it is applied before anything derived from them.
+    if (calculationParameters.effectiveHighLatitudeRule(coordinates) ===
+        HighLatitudeRule.PROPORTIONAL_DEPRESSION && transit != null) {
+      val sunriseShift = calculationParameters.methodAdjustments.sunrise +
+          calculationParameters.prayerAdjustments.sunrise
+      val maghribShift = calculationParameters.methodAdjustments.maghrib +
+          calculationParameters.prayerAdjustments.maghrib
+      val dhuhrShift = calculationParameters.methodAdjustments.dhuhr +
+          calculationParameters.prayerAdjustments.dhuhr
+
+      // the published day, i.e. after the temkin has been applied to both ends
+      val publishedDay = if (sunriseComponents == null || sunsetComponents == null) {
+        // the sun never crosses the horizon: a polar night is a zero-length day, a polar day a
+        // zero-length night
+        if (solarTime.maximumAltitude < 0.0) 0 else 1440
+      } else {
+        minutesBetween(sunriseComponents, sunsetComponents) + maghribShift - sunriseShift
+      }
+
+      val halfFromDhuhr = when {
+        publishedDay < TakdirTable.MINIMUM_DAY_MINUTES -> TakdirTable.FLOORED_DAY_HALF_MINUTES
+        1440 - publishedDay < TakdirTable.MINIMUM_DAY_MINUTES ->
+          TakdirTable.FLOORED_NIGHT_HALF_MINUTES
+        else -> null
+      }
+
+      if (halfFromDhuhr != null) {
+        fiveHourFloorApplied = true
+        // solve so that the *published* sunrise and maghrib land halfFromDhuhr either side of Ogle
+        sunriseComponents = add(transit, dhuhrShift - halfFromDhuhr - sunriseShift, DateTimeUnit.MINUTE)
+        sunsetComponents = add(transit, dhuhrShift + halfFromDhuhr - maghribShift, DateTimeUnit.MINUTE)
+        tomorrowSunriseComponents = TimeComponents.fromLocalDateTime(
+          add(sunriseComponents, 1440, DateTimeUnit.MINUTE)
+        )
+      }
     }
 
     effectiveCoordinates = coordinates
@@ -120,6 +164,30 @@ data class PrayerTimes(
 
       if (timeComponents != null) {
         tempAsr = timeComponents.dateComponents(dateComponents)
+      }
+
+      // The asr shadow ratio can be unattainable at extreme latitudes: where the sun never rises
+      // the shadow formula returns a meaningless value, and in a polar day at very high latitudes
+      // the sun circles too high ever to cast it. Diyanet publishes asr equal to dhuhr on exactly
+      // the days its sun never rises (58 of them at Tromso; none at Oulu, whose sun always clears
+      // the horizon), and the same fallback keeps the times ordered in the other case.
+      if (calculationParameters.effectiveHighLatitudeRule(coordinates) ===
+          HighLatitudeRule.PROPORTIONAL_DEPRESSION) {
+        val asrShift = calculationParameters.methodAdjustments.asr +
+            calculationParameters.prayerAdjustments.asr
+        val dhuhrShiftForAsr = calculationParameters.methodAdjustments.dhuhr +
+            calculationParameters.prayerAdjustments.dhuhr
+        val maghribShiftForAsr = calculationParameters.methodAdjustments.maghrib +
+            calculationParameters.prayerAdjustments.maghrib
+        // offsets chosen so the comparison holds once each prayer has its own adjustment applied
+        val asrFloor = add(transit, dhuhrShiftForAsr - asrShift, DateTimeUnit.MINUTE)
+        val asrCeiling = add(sunsetComponents, maghribShiftForAsr - asrShift, DateTimeUnit.MINUTE)
+        tempAsr = when {
+          solarTime.maximumAltitude < 0.0 || tempAsr == null -> asrFloor
+          tempAsr.before(asrFloor) -> asrFloor
+          tempAsr.after(asrCeiling) -> asrCeiling
+          else -> tempAsr
+        }
       }
 
       // get night length
@@ -144,24 +212,52 @@ data class PrayerTimes(
       }
 
       val nightPortions = calculationParameters.nightPortions(coordinates)
+      val usesTakdir = calculationParameters.effectiveHighLatitudeRule(coordinates) ===
+          HighLatitudeRule.PROPORTIONAL_DEPRESSION
+      // Diyanet only estimates from 44.5 degrees latitude upwards, its own published threshold;
+      // south of it the plain twilight angles are published as-is, with no bound at all.
+      val takdirApplies = usesTakdir && abs(coordinates.latitude) >= TakdirTable.MIN_LATITUDE
 
-      val safeFajr: LocalDateTime =
-        if (calculationParameters.method === CalculationMethod.MOON_SIGHTING_COMMITTEE) {
-        seasonAdjustedMorningTwilight(
-          coordinates.latitude,
-          dayOfYear,
-          dateComponents.year,
-          sunriseComponents
+      val nightPortionFajr = add(
+        sunriseComponents,
+        -1 * (nightPortions.fajr * night / 1000).toLong().toInt(),
+        DateTimeUnit.SECOND
+      )
+
+      // null means "leave the angle-based time alone"
+      val safeFajr: LocalDateTime? = when {
+        calculationParameters.method === CalculationMethod.MOON_SIGHTING_COMMITTEE ->
+          seasonAdjustedMorningTwilight(
+            coordinates.latitude,
+            dayOfYear,
+            dateComponents.year,
+            sunriseComponents
+          )
+        // between the 45th and 46th parallels Diyanet's estimate holds the twilight duration
+        // itself close to constant, rather than a proportion of the sun's descent
+        // where the five-hour floor has replaced the geometry, the twilight follows the floored
+        // night rather than any solar angle
+        takdirApplies && fiveHourFloorApplied -> nightPortionFajr
+        takdirApplies && abs(coordinates.latitude) < TakdirTable.MAX_DURATION_LATITUDE -> add(
+          sunriseComponents,
+          -TakdirTable.fajrDurationCap(coordinates.latitude),
+          DateTimeUnit.MINUTE
         )
-      } else {
-        val portion = nightPortions.fajr
-        val nightFraction = (portion * night / 1000).toLong()
-        add(
-          sunriseComponents, -1 * nightFraction.toInt(), DateTimeUnit.SECOND
-        )
+        takdirApplies -> TimeComponents.fromDouble(
+          solarTime.timeForProportionalDepression(
+            calculationParameters.fajrAngle,
+            TakdirTable.fajrProportion(coordinates.latitude),
+            false,
+            TakdirTable.usesMeanSolarTime(coordinates.latitude)
+          )
+        )?.dateComponents(dateComponents) ?: nightPortionFajr
+        usesTakdir -> null
+        else -> nightPortionFajr
       }
 
-      if (tempFajr == null || tempFajr.before(safeFajr)) {
+      if (tempFajr == null) {
+        tempFajr = safeFajr ?: nightPortionFajr
+      } else if (safeFajr != null && tempFajr.before(safeFajr)) {
         tempFajr = safeFajr
       }
 
@@ -184,17 +280,41 @@ data class PrayerTimes(
           tempIsha = add(sunsetComponents, nightFraction.toInt(), DateTimeUnit.SECOND)
         }
 
-        val safeIsha: LocalDateTime = if (calculationParameters.method === CalculationMethod.MOON_SIGHTING_COMMITTEE) {
-          seasonAdjustedEveningTwilight(
-            coordinates.latitude, dayOfYear, dateComponents.year, sunsetComponents, calculationParameters.shafaq
+        val nightPortionIsha = add(
+          sunsetComponents,
+          (nightPortions.isha * night / 1000).toLong().toInt(),
+          DateTimeUnit.SECOND
+        )
+
+        val safeIsha: LocalDateTime? = when {
+          calculationParameters.method === CalculationMethod.MOON_SIGHTING_COMMITTEE ->
+            seasonAdjustedEveningTwilight(
+              coordinates.latitude, dayOfYear, dateComponents.year, sunsetComponents,
+              calculationParameters.shafaq
+            )
+          // where the five-hour floor has replaced the geometry, the twilight follows the floored
+          // night rather than any solar angle
+          takdirApplies && fiveHourFloorApplied -> nightPortionIsha
+          takdirApplies && abs(coordinates.latitude) < TakdirTable.MAX_DURATION_LATITUDE -> add(
+            sunsetComponents,
+            TakdirTable.ishaDurationCap(coordinates.latitude),
+            DateTimeUnit.MINUTE
           )
-        } else {
-          val portion = nightPortions.isha
-          val nightFraction = (portion * night / 1000).toLong()
-          add(sunsetComponents, nightFraction.toInt(), DateTimeUnit.SECOND)
+          takdirApplies -> TimeComponents.fromDouble(
+            solarTime.timeForProportionalDepression(
+              calculationParameters.ishaAngle,
+              TakdirTable.ishaProportion(coordinates.latitude),
+              true,
+              TakdirTable.usesMeanSolarTime(coordinates.latitude)
+            )
+          )?.dateComponents(dateComponents) ?: nightPortionIsha
+          usesTakdir -> null
+          else -> nightPortionIsha
         }
 
-        if (tempIsha == null || tempIsha.after(safeIsha)) {
+        if (tempIsha == null) {
+          tempIsha = safeIsha ?: nightPortionIsha
+        } else if (safeIsha != null && tempIsha.after(safeIsha)) {
           tempIsha = safeIsha
         }
       }
@@ -314,6 +434,10 @@ data class PrayerTimes(
       NONE -> null
     }
   }
+
+  private fun minutesBetween(from: LocalDateTime, to: LocalDateTime): Int =
+    ((to.toInstant(TimeZone.UTC).toEpochMilliseconds() -
+      from.toInstant(TimeZone.UTC).toEpochMilliseconds()) / 60000L).toInt()
 
   private fun LocalDateTime.before(other: LocalDateTime): Boolean {
     return toInstant(TimeZone.UTC).toEpochMilliseconds() <

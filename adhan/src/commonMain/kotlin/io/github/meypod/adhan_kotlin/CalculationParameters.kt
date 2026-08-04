@@ -47,14 +47,37 @@ data class CalculationParameters(
   // Twilight in the sky
   val shafaq: Shafaq = Shafaq.GENERAL,
 
-  val polarCircleResolution: PolarCircleResolution = PolarCircleResolution.Unresolved
+  val polarCircleResolution: PolarCircleResolution = PolarCircleResolution.Unresolved,
+
+  /**
+   * Whether the sun's declination is interpolated to the moment of each event, as Astronomical
+   * Algorithms prescribes, or held at its value for 0h universal time.
+   *
+   * Leave this `true` unless you are matching an authority that does not interpolate. Diyanet
+   * appears not to: with the declination held at 0h its published sunrise, dhuhr, asr and maghrib
+   * reproduce exactly, whereas interpolating moves the evening times by up to two minutes around
+   * the equinoxes, in proportion to how fast the declination is changing.
+   */
+  val interpolateDeclination: Boolean = true
 ) {
 
   @Serializable
   data class NightPortions(val fajr: Double, val isha: Double)
 
+  private companion object {
+    /** See the PROPORTIONAL_DEPRESSION branch of [nightPortions]. */
+    const val POLAR_NIGHT_PORTION_DIVISOR = 87.6
+  }
+
+  /**
+   * The effective high latitude rule, resolving [highLatitudeRule] being unset to
+   * [HighLatitudeRule.recommendedFor].
+   */
+  fun effectiveHighLatitudeRule(coordinates: Coordinates): HighLatitudeRule =
+    highLatitudeRule ?: HighLatitudeRule.recommendedFor(coordinates)
+
   fun nightPortions(coordinates: Coordinates): NightPortions {
-    return when (highLatitudeRule ?: HighLatitudeRule.recommendedFor(coordinates)) {
+    return when (effectiveHighLatitudeRule(coordinates)) {
       HighLatitudeRule.MIDDLE_OF_THE_NIGHT -> {
         NightPortions(1.0 / 2.0, 1.0 / 2.0)
       }
@@ -63,6 +86,19 @@ data class CalculationParameters(
       }
       HighLatitudeRule.TWILIGHT_ANGLE -> {
         NightPortions(this.fajrAngle / 60.0, this.ishaAngle / 60.0)
+      }
+      // PROPORTIONAL_DEPRESSION bounds the twilight angle rather than the night, so it has no
+      // night portion of its own. This is only reached inside the polar circle, where the sun's
+      // depression at solar midnight is too shallow for an angle to mean anything and Diyanet's
+      // five-hour floor has fixed the night outright. Across every such day at Tromsø, Oulu,
+      // Trondheim, Umeå, Helsinki, Tampere and Bergen, Diyanet places Fajr 0.2055 of that night
+      // before sunrise and Isha 0.1829 after maghrib — the same divisor for both, since the two
+      // scale as their angles do.
+      HighLatitudeRule.PROPORTIONAL_DEPRESSION -> {
+        NightPortions(
+          this.fajrAngle / POLAR_NIGHT_PORTION_DIVISOR,
+          this.ishaAngle / POLAR_NIGHT_PORTION_DIVISOR
+        )
       }
     }
   }

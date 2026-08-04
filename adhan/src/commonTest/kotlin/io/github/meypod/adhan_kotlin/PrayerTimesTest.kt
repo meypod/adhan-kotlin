@@ -30,6 +30,9 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.test.assertTrue
 import kotlin.time.Instant
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.hours
+import kotlin.math.absoluteValue
 
 class PrayerTimesTest {
 
@@ -184,9 +187,211 @@ class PrayerTimesTest {
     assertEquals("04:44 AM", stringifyAtTimezone(prayerTimes.fajr, zoneId))
     assertEquals("06:16 AM", stringifyAtTimezone(prayerTimes.sunrise, zoneId))
     assertEquals("01:09 PM", stringifyAtTimezone(prayerTimes.dhuhr, zoneId))
-    assertEquals("04:53 PM", stringifyAtTimezone(prayerTimes.asr, zoneId)) // original time 4:52pm
-    assertEquals("07:52 PM", stringifyAtTimezone(prayerTimes.maghrib, zoneId))
-    assertEquals("09:19 PM", stringifyAtTimezone(prayerTimes.isha, zoneId)) // original time 9:18pm
+    assertEquals("04:52 PM", stringifyAtTimezone(prayerTimes.asr, zoneId))
+    assertEquals("07:51 PM", stringifyAtTimezone(prayerTimes.maghrib, zoneId)) // Diyanet 7:52pm
+    assertEquals("09:17 PM", stringifyAtTimezone(prayerTimes.isha, zoneId)) // Diyanet 9:18pm
+  }
+
+  /**
+   * Reference values below are Diyanet's published 2026 calendars
+   * (https://namazvakitleri.diyanet.gov.tr). Deviations, where they exist, are noted per line.
+   */
+  @Test
+  fun testDiyanetTurkeyIstanbulSolstice() {
+    val prayerTimes = PrayerTimes(
+      Coordinates(41.0082, 28.9784), DateComponents(2026, 6, 21), CalculationMethod.TURKEY.parameters
+    )
+    val zoneId = "Europe/Istanbul"
+    assertEquals("03:24 AM", stringifyAtTimezone(prayerTimes.fajr, zoneId))
+    assertEquals("05:25 AM", stringifyAtTimezone(prayerTimes.sunrise, zoneId))
+    assertEquals("01:11 PM", stringifyAtTimezone(prayerTimes.dhuhr, zoneId))
+    assertEquals("05:11 PM", stringifyAtTimezone(prayerTimes.asr, zoneId))
+    assertEquals("08:47 PM", stringifyAtTimezone(prayerTimes.maghrib, zoneId))
+    assertEquals("10:38 PM", stringifyAtTimezone(prayerTimes.isha, zoneId))
+  }
+
+  /** Erzurum sits at ~1900m; Diyanet applies no elevation correction, and neither do we. */
+  @Test
+  fun testDiyanetTurkeyErzurumSolstice() {
+    val prayerTimes = PrayerTimes(
+      Coordinates(39.9086, 41.2769), DateComponents(2026, 6, 21), CalculationMethod.TURKEY.parameters
+    )
+    val zoneId = "Europe/Istanbul"
+    assertEquals("02:43 AM", stringifyAtTimezone(prayerTimes.fajr, zoneId)) // Diyanet 2:44am
+    assertEquals("04:39 AM", stringifyAtTimezone(prayerTimes.sunrise, zoneId)) // Diyanet 4:40am
+    assertEquals("12:22 PM", stringifyAtTimezone(prayerTimes.dhuhr, zoneId))
+    assertEquals("04:19 PM", stringifyAtTimezone(prayerTimes.asr, zoneId))
+    assertEquals("07:54 PM", stringifyAtTimezone(prayerTimes.maghrib, zoneId))
+    assertEquals("09:41 PM", stringifyAtTimezone(prayerTimes.isha, zoneId))
+  }
+
+  /** Rome is below 44.5°, so no takdir is applied and the 16° Isha stands alone. */
+  @Test
+  fun testDiyanetEuropeRomeSolstice() {
+    val prayerTimes = PrayerTimes(
+      Coordinates(41.9028, 12.4964), DateComponents(2026, 6, 21),
+      CalculationMethod.TURKEY_EUROPE.parameters
+    )
+    val zoneId = "Europe/Rome"
+    assertEquals("03:23 AM", stringifyAtTimezone(prayerTimes.fajr, zoneId))
+    assertEquals("05:28 AM", stringifyAtTimezone(prayerTimes.sunrise, zoneId))
+    assertEquals("01:17 PM", stringifyAtTimezone(prayerTimes.dhuhr, zoneId))
+    assertEquals("05:19 PM", stringifyAtTimezone(prayerTimes.asr, zoneId))
+    assertEquals("08:56 PM", stringifyAtTimezone(prayerTimes.maghrib, zoneId))
+    assertEquals("10:42 PM", stringifyAtTimezone(prayerTimes.isha, zoneId)) // Diyanet 10:41pm
+  }
+
+  /** At the solstice Berlin never reaches 18°/16°, so the takdir bound decides Fajr and Isha. */
+  @Test
+  fun testDiyanetEuropeBerlinSolstice() {
+    val prayerTimes = PrayerTimes(
+      Coordinates(52.5200, 13.4050), DateComponents(2026, 6, 21),
+      CalculationMethod.TURKEY_EUROPE.parameters
+    )
+    val zoneId = "Europe/Berlin"
+    assertEquals("03:13 AM", stringifyAtTimezone(prayerTimes.fajr, zoneId)) // Diyanet 3:10am
+    assertEquals("04:36 AM", stringifyAtTimezone(prayerTimes.sunrise, zoneId))
+    assertEquals("01:13 PM", stringifyAtTimezone(prayerTimes.dhuhr, zoneId))
+    assertEquals("05:37 PM", stringifyAtTimezone(prayerTimes.asr, zoneId))
+    assertEquals("09:40 PM", stringifyAtTimezone(prayerTimes.maghrib, zoneId))
+    assertEquals("10:54 PM", stringifyAtTimezone(prayerTimes.isha, zoneId)) // Diyanet 10:57pm
+  }
+
+  /** In winter the angles are reachable, so the takdir must not bind at all. */
+  @Test
+  fun testDiyanetEuropeBerlinWinter() {
+    val prayerTimes = PrayerTimes(
+      Coordinates(52.5200, 13.4050), DateComponents(2026, 12, 21),
+      CalculationMethod.TURKEY_EUROPE.parameters
+    )
+    val zoneId = "Europe/Berlin"
+    assertEquals("06:07 AM", stringifyAtTimezone(prayerTimes.fajr, zoneId))
+    assertEquals("08:08 AM", stringifyAtTimezone(prayerTimes.sunrise, zoneId))
+    assertEquals("12:09 PM", stringifyAtTimezone(prayerTimes.dhuhr, zoneId))
+    assertEquals("01:43 PM", stringifyAtTimezone(prayerTimes.asr, zoneId)) // Diyanet 1:42pm
+    assertEquals("04:01 PM", stringifyAtTimezone(prayerTimes.maghrib, zoneId))
+    assertEquals("05:48 PM", stringifyAtTimezone(prayerTimes.isha, zoneId))
+  }
+
+  @Test
+  fun testDiyanetEuropeOsloWinter() {
+    val prayerTimes = PrayerTimes(
+      Coordinates(59.9139, 10.7522), DateComponents(2026, 12, 21),
+      CalculationMethod.TURKEY_EUROPE.parameters
+    )
+    val zoneId = "Europe/Oslo"
+    assertEquals("06:32 AM", stringifyAtTimezone(prayerTimes.fajr, zoneId))
+    assertEquals("09:11 AM", stringifyAtTimezone(prayerTimes.sunrise, zoneId))
+    assertEquals("12:20 PM", stringifyAtTimezone(prayerTimes.dhuhr, zoneId))
+    assertEquals("01:11 PM", stringifyAtTimezone(prayerTimes.asr, zoneId))
+    assertEquals("03:19 PM", stringifyAtTimezone(prayerTimes.maghrib, zoneId))
+    assertEquals("05:41 PM", stringifyAtTimezone(prayerTimes.isha, zoneId))
+  }
+
+  /**
+   * The takdir keys off the sun's depression, which is symmetric about the equator, so it must
+   * behave the same at mirrored latitudes and must not throw where the bound degenerates.
+   */
+  @Test
+  fun testDiyanetTakdirAtExtremeLatitudes() {
+    val parameters = CalculationMethod.TURKEY_EUROPE.parameters
+      .copy(polarCircleResolution = PolarCircleResolution.AqrabBalad)
+    listOf(2026 to 6, 2026 to 12).forEach { (year, month) ->
+      listOf(50.0, 60.0, 66.0, 70.0, 80.0).forEach { latitude ->
+        listOf(latitude, -latitude).forEach { signedLatitude ->
+          val times = PrayerTimes(
+            Coordinates(signedLatitude, 10.0), DateComponents(year, month, 21), parameters
+          )
+          assertTrue(times.fajr <= times.sunrise, "fajr after sunrise at $signedLatitude")
+          assertTrue(times.maghrib <= times.isha, "isha before maghrib at $signedLatitude")
+        }
+      }
+    }
+    // June in the north mirrors December in the south. The two are not identical to the second:
+    // the equation of time differs between the solstices, so allow a minute.
+    val north = PrayerTimes(
+      Coordinates(52.52, 13.405), DateComponents(2026, 6, 21), parameters
+    )
+    val south = PrayerTimes(
+      Coordinates(-52.52, 13.405), DateComponents(2026, 12, 21), parameters
+    )
+    val northTwilight = north.sunrise - north.fajr
+    val southTwilight = south.sunrise - south.fajr
+    assertTrue(
+      (northTwilight - southTwilight).absoluteValue <= 1.minutes,
+      "mirrored takdir differs: $northTwilight vs $southTwilight"
+    )
+  }
+
+  /**
+   * Diyanet floors the day and the night at five hours, which defines sunrise and maghrib inside
+   * the polar circle where the sun may not cross the horizon at all. Reference values from its
+   * published 2026 calendar for Tromsø.
+   */
+  @Test
+  fun testDiyanetFiveHourFloorTromso() {
+    val coordinates = Coordinates(69.6492, 18.9553)
+    val zoneId = "Europe/Oslo"
+    val parameters = CalculationMethod.TURKEY_EUROPE.parameters
+
+    // polar night: the day is floored, and asr falls back to dhuhr because the sun never rises
+    val winter = PrayerTimes(coordinates, DateComponents(2026, 12, 21), parameters)
+    assertEquals("06:28 AM", stringifyAtTimezone(winter.fajr, zoneId))
+    assertEquals("09:17 AM", stringifyAtTimezone(winter.sunrise, zoneId))
+    assertEquals("11:47 AM", stringifyAtTimezone(winter.dhuhr, zoneId))
+    assertEquals("11:47 AM", stringifyAtTimezone(winter.asr, zoneId))
+    assertEquals("02:17 PM", stringifyAtTimezone(winter.maghrib, zoneId))
+    assertEquals("04:31 PM", stringifyAtTimezone(winter.isha, zoneId))
+    // the floored day is exactly five hours
+    assertEquals(5.hours, winter.maghrib - winter.sunrise)
+
+    // polar day: the night is floored instead
+    val summer = PrayerTimes(coordinates, DateComponents(2026, 6, 21), parameters)
+    assertEquals("03:21 AM", stringifyAtTimezone(summer.sunrise, zoneId))
+    assertEquals("12:51 PM", stringifyAtTimezone(summer.dhuhr, zoneId))
+    assertEquals("06:02 PM", stringifyAtTimezone(summer.asr, zoneId))
+    assertEquals("10:21 PM", stringifyAtTimezone(summer.maghrib, zoneId))
+    assertEquals("02:23 AM", stringifyAtTimezone(summer.fajr, zoneId)) // Diyanet 2:19am
+    assertEquals("11:11 PM", stringifyAtTimezone(summer.isha, zoneId)) // Diyanet 11:16pm
+    assertEquals(19.hours, summer.maghrib - summer.sunrise)
+  }
+
+  /** Inside the polar circle the times must still be ordered, and must not throw. */
+  @Test
+  fun testDiyanetPolarOrdering() {
+    val parameters = CalculationMethod.TURKEY_EUROPE.parameters
+    listOf(60.0, 65.0, 69.65, 75.0, 80.0, 89.0).forEach { latitude ->
+      listOf(latitude, -latitude).forEach { signed ->
+        (1..12).forEach { month ->
+          val t = PrayerTimes(
+            Coordinates(signed, 18.9553), DateComponents(2026, month, 21), parameters
+          )
+          assertTrue(t.fajr <= t.sunrise, "fajr after sunrise at $signed month $month")
+          assertTrue(t.sunrise <= t.dhuhr, "sunrise after dhuhr at $signed month $month")
+          assertTrue(t.dhuhr <= t.asr, "dhuhr after asr at $signed month $month")
+          assertTrue(t.asr <= t.maghrib, "asr after maghrib at $signed month $month")
+          assertTrue(t.maghrib <= t.isha, "maghrib after isha at $signed month $month")
+        }
+      }
+    }
+  }
+
+  /** The takdir must never fire below 44.5°, where Diyanet publishes the raw angles. */
+  @Test
+  fun testDiyanetTakdirDoesNotApplyBelow45() {
+    val parameters = CalculationMethod.TURKEY_EUROPE.parameters
+    val unbounded = parameters.copy(highLatitudeRule = HighLatitudeRule.TWILIGHT_ANGLE)
+    val date = DateComponents(2026, 6, 21)
+    listOf(Coordinates(43.7102, 7.2620), Coordinates(41.9028, 12.4964)).forEach { coordinates ->
+      assertEquals(
+        PrayerTimes(coordinates, date, unbounded).fajr,
+        PrayerTimes(coordinates, date, parameters).fajr
+      )
+      assertEquals(
+        PrayerTimes(coordinates, date, unbounded).isha,
+        PrayerTimes(coordinates, date, parameters).isha
+      )
+    }
   }
 
   @Test

@@ -37,6 +37,7 @@ private fun dateByAddingDays(date: DateComponents, days: Int): DateComponents {
 private fun aqrabYaumResolver(
   coordinates: Coordinates,
   date: DateComponents,
+  interpolateDeclination: Boolean,
   daysAdded: Int = 1,
   direction: Int = 1,
 ): PolarResolvedValues? {
@@ -44,12 +45,12 @@ private fun aqrabYaumResolver(
 
   val testDate = dateByAddingDays(date, direction * daysAdded)
   val tomorrow = dateByAddingDays(testDate, 1)
-  val solarTime = SolarTime(testDate, coordinates)
-  val tomorrowSolarTime = SolarTime(tomorrow, coordinates)
+  val solarTime = SolarTime(testDate, coordinates, interpolateDeclination)
+  val tomorrowSolarTime = SolarTime(tomorrow, coordinates, interpolateDeclination)
 
   if (!isValidSolarTime(solarTime) || !isValidSolarTime(tomorrowSolarTime)) {
     val nextDaysAdded = daysAdded + if (direction > 0) 0 else 1
-    return aqrabYaumResolver(coordinates, date, nextDaysAdded, -direction)
+    return aqrabYaumResolver(coordinates, date, interpolateDeclination, nextDaysAdded, -direction)
   }
 
   return PolarResolvedValues(date, tomorrow, coordinates, solarTime, tomorrowSolarTime)
@@ -59,11 +60,12 @@ private fun aqrabBaladResolver(
   coordinates: Coordinates,
   date: DateComponents,
   latitude: Double,
+  interpolateDeclination: Boolean,
 ): PolarResolvedValues? {
   val testCoords = Coordinates(latitude, coordinates.longitude)
-  val solarTime = SolarTime(date, testCoords)
+  val solarTime = SolarTime(date, testCoords, interpolateDeclination)
   val tomorrow = dateByAddingDays(date, 1)
-  val tomorrowSolarTime = SolarTime(tomorrow, testCoords)
+  val tomorrowSolarTime = SolarTime(tomorrow, testCoords, interpolateDeclination)
 
   if (!isValidSolarTime(solarTime) || !isValidSolarTime(tomorrowSolarTime)) {
     return if (abs(latitude) >= UNSAFE_LATITUDE) {
@@ -71,6 +73,7 @@ private fun aqrabBaladResolver(
         coordinates,
         date,
         latitude - sign(latitude) * LATITUDE_VARIATION_STEP,
+        interpolateDeclination,
       )
     } else {
       null
@@ -90,24 +93,27 @@ fun resolvePolarCircleValues(
     resolver: PolarCircleResolution,
     date: DateComponents,
     coordinates: Coordinates,
+    interpolateDeclination: Boolean = true,
 ): PolarResolvedValues {
   val tomorrow = dateByAddingDays(date, 1)
   val defaultReturn = PolarResolvedValues(
     date,
     tomorrow,
     coordinates,
-    SolarTime(date, coordinates),
-    SolarTime(tomorrow, coordinates),
+    SolarTime(date, coordinates, interpolateDeclination),
+    SolarTime(tomorrow, coordinates, interpolateDeclination),
   )
 
   return when (resolver) {
-    PolarCircleResolution.AqrabYaum -> aqrabYaumResolver(coordinates, date) ?: defaultReturn
+    PolarCircleResolution.AqrabYaum ->
+      aqrabYaumResolver(coordinates, date, interpolateDeclination) ?: defaultReturn
     PolarCircleResolution.AqrabBalad -> {
       val latitude = coordinates.latitude
       aqrabBaladResolver(
         coordinates,
         date,
         latitude - sign(latitude) * LATITUDE_VARIATION_STEP,
+        interpolateDeclination,
       ) ?: defaultReturn
     }
     else -> defaultReturn

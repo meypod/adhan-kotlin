@@ -9,7 +9,10 @@ import io.github.meypod.adhan_kotlin.CalculationMethod.MUSLIM_WORLD_LEAGUE
 import io.github.meypod.adhan_kotlin.CalculationMethod.NORTH_AMERICA
 import io.github.meypod.adhan_kotlin.CalculationMethod.OTHER
 import io.github.meypod.adhan_kotlin.CalculationMethod.QATAR
+import io.github.meypod.adhan_kotlin.CalculationMethod.TURKEY
+import io.github.meypod.adhan_kotlin.CalculationMethod.TURKEY_EUROPE
 import io.github.meypod.adhan_kotlin.CalculationMethod.UMM_AL_QURA
+import io.github.meypod.adhan_kotlin.HighLatitudeRule.PROPORTIONAL_DEPRESSION
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -72,6 +75,19 @@ class CalculationMethodTest {
     assertTrue { abs(params.ishaAngle - 0) <= 0.000001 }
     assertEquals(90, params.ishaInterval)
     assertEquals(QATAR, params.method)
+
+    params = TURKEY.parameters
+    assertTrue { abs(params.fajrAngle - 18) <= 0.000001 }
+    assertTrue { abs(params.ishaAngle - 17) <= 0.000001 }
+    assertEquals(PROPORTIONAL_DEPRESSION, params.highLatitudeRule)
+    assertEquals(TURKEY, params.method)
+
+    params = TURKEY_EUROPE.parameters
+    assertTrue { abs(params.fajrAngle - 18) <= 0.000001 }
+    assertTrue { abs(params.ishaAngle - 16) <= 0.000001 }
+    assertEquals(PROPORTIONAL_DEPRESSION, params.highLatitudeRule)
+    assertEquals(TURKEY.parameters.methodAdjustments, params.methodAdjustments)
+    assertEquals(TURKEY_EUROPE, params.method)
 
     params = OTHER.parameters
     assertTrue { abs(params.fajrAngle - 0) <= 0.000001 }

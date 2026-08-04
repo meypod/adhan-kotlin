@@ -11,8 +11,10 @@ import io.github.meypod.adhan_kotlin.CalculationMethod.OTHER
 import io.github.meypod.adhan_kotlin.CalculationMethod.QATAR
 import io.github.meypod.adhan_kotlin.CalculationMethod.SINGAPORE
 import io.github.meypod.adhan_kotlin.CalculationMethod.TURKEY
+import io.github.meypod.adhan_kotlin.CalculationMethod.TURKEY_EUROPE
 import io.github.meypod.adhan_kotlin.CalculationMethod.UMM_AL_QURA
 import io.github.meypod.adhan_kotlin.HighLatitudeRule.MIDDLE_OF_THE_NIGHT
+import io.github.meypod.adhan_kotlin.HighLatitudeRule.PROPORTIONAL_DEPRESSION
 import io.github.meypod.adhan_kotlin.HighLatitudeRule.SEVENTH_OF_THE_NIGHT
 import io.github.meypod.adhan_kotlin.HighLatitudeRule.TWILIGHT_ANGLE
 import io.github.meypod.adhan_kotlin.Madhab.HANAFI
@@ -131,6 +133,7 @@ class TimingTest {
       "Qatar" -> QATAR
       "Singapore" -> SINGAPORE
       "Turkey" -> TURKEY
+      "TurkeyEurope" -> TURKEY_EUROPE
       else -> OTHER
     }
 
@@ -143,12 +146,11 @@ class TimingTest {
       parameters.madhab
     }
 
-    val highLatitudeRule = if ("SeventhOfTheNight" == timingParameters.highLatitudeRule) {
-      SEVENTH_OF_THE_NIGHT
-    } else if ("TwilightAngle" == timingParameters.highLatitudeRule) {
-      TWILIGHT_ANGLE
-    } else {
-      MIDDLE_OF_THE_NIGHT
+    val highLatitudeRule = when (timingParameters.highLatitudeRule) {
+      "SeventhOfTheNight" -> SEVENTH_OF_THE_NIGHT
+      "TwilightAngle" -> TWILIGHT_ANGLE
+      "ProportionalDepression" -> PROPORTIONAL_DEPRESSION
+      else -> MIDDLE_OF_THE_NIGHT
     }
     return method.parameters.copy(madhab = madhab, highLatitudeRule = highLatitudeRule)
   }
