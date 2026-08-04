@@ -1,6 +1,6 @@
 # Changelog
 
-## development
+## version 0.0.13
 
 - fix the Diyanet (`TURKEY`) method away from Turkey. Fajr and Isha were bounded by
   `SEVENTH_OF_THE_NIGHT` above 48°N, which Diyanet does not use; errors reached 68 minutes in
@@ -35,7 +35,7 @@ Accuracy against Diyanet's published 2026 calendars, mean error in minutes (wors
 brackets), before → after:
 
 | | Turkey, 12 cities | Europe, 23 cities |
-|---|---|---|
+| --- | --- | --- |
 | Fajr | 0.11 (1) → 0.08 (1) | 10.60 (68) → **0.55 (7)** |
 | Sunrise | 0.14 (1) → 0.09 (1) | 0.30 (7) → **0.10 (7)** |
 | Dhuhr | 0.10 (1) → 0.10 (1) | 0.12 (1) → 0.12 (1) |
