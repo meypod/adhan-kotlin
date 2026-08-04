@@ -5,6 +5,13 @@ import io.github.meypod.adhan_kotlin.model.Shafaq
 import kotlinx.serialization.Serializable
 
 /**
+ * See the PROPORTIONAL_DEPRESSION branch of [CalculationParameters.nightPortions]. Declared at file
+ * level rather than in a companion: a `private companion object` on a @Serializable class hides the
+ * compiler-generated `Companion.serializer()`.
+ */
+private const val POLAR_NIGHT_PORTION_DIVISOR = 87.6
+
+/**
  * Parameters used for PrayerTime calculation customization
  *
  * Note that, for many cases, you can use {@link CalculationMethod#getParameters()} to get a
@@ -63,11 +70,6 @@ data class CalculationParameters(
 
   @Serializable
   data class NightPortions(val fajr: Double, val isha: Double)
-
-  private companion object {
-    /** See the PROPORTIONAL_DEPRESSION branch of [nightPortions]. */
-    const val POLAR_NIGHT_PORTION_DIVISOR = 87.6
-  }
 
   /**
    * The effective high latitude rule, resolving [highLatitudeRule] being unset to

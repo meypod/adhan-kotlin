@@ -93,7 +93,13 @@ fun resolvePolarCircleValues(
     resolver: PolarCircleResolution,
     date: DateComponents,
     coordinates: Coordinates,
-    interpolateDeclination: Boolean = true,
+): PolarResolvedValues = resolvePolarCircleValues(resolver, date, coordinates, true)
+
+fun resolvePolarCircleValues(
+    resolver: PolarCircleResolution,
+    date: DateComponents,
+    coordinates: Coordinates,
+    interpolateDeclination: Boolean,
 ): PolarResolvedValues {
   val tomorrow = dateByAddingDays(date, 1)
   val defaultReturn = PolarResolvedValues(

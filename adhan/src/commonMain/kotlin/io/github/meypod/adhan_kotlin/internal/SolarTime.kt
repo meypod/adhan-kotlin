@@ -12,8 +12,10 @@ import kotlin.math.tan
 class SolarTime(
   date: DateComponents,
   coordinates: Coordinates,
-  private val interpolateDeclination: Boolean = true
+  private val interpolateDeclination: Boolean
 ) {
+  constructor(date: DateComponents, coordinates: Coordinates) : this(date, coordinates, true)
+
 
   companion object {
     /** Depression of the sun's centre at sunrise/sunset, accounting for refraction and radius. */
