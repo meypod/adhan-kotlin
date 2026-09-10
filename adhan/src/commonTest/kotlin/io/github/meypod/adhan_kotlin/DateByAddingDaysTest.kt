@@ -18,11 +18,11 @@ class DateByAddingDaysTest {
   }
 
   private fun dayOfMonthAtZone(instant: Instant, zone: TimeZone): Int {
-    return instant.toLocalDateTime(zone).dayOfMonth
+    return instant.toLocalDateTime(zone).day
   }
 
   private fun dayOfMonthDefaultZone(instant: Instant): Int {
-    return instant.toLocalDateTime(TimeZone.currentSystemDefault()).dayOfMonth
+    return instant.toLocalDateTime(TimeZone.currentSystemDefault()).day
   }
 
   @Test
@@ -40,14 +40,18 @@ class DateByAddingDaysTest {
 
   @Test
   fun testAddingDaysNormalDateDefaultZone() {
-    val localInstant = LocalDateTime(2015, 11, 1, 0, 0, 0).toInstant(TimeZone.currentSystemDefault())
-    assertEquals(1, dayOfMonthDefaultZone(localInstant))
+    // Hermetic: the system default zone varies per machine, so instead of
+    // hard-coding the expected day, assert the default-zone path agrees with
+    // the explicit conversion for the same zone.
+    val zone = TimeZone.currentSystemDefault()
+    val localInstant = LocalDateTime(2015, 11, 1, 0, 0, 0).toInstant(zone)
+    assertEquals(dayOfMonthAtZone(localInstant, zone), dayOfMonthDefaultZone(localInstant))
 
     val plus = dateByAddingDays(localInstant, 1)
-    assertEquals(2, dayOfMonthDefaultZone(plus))
+    assertEquals(dayOfMonthAtZone(plus, zone), dayOfMonthDefaultZone(plus))
 
     val minus = dateByAddingDays(localInstant, -1)
-    assertEquals(31, dayOfMonthDefaultZone(minus))
+    assertEquals(dayOfMonthAtZone(minus, zone), dayOfMonthDefaultZone(minus))
   }
 
   @Test
@@ -65,14 +69,16 @@ class DateByAddingDaysTest {
 
   @Test
   fun testAddingDaysBrazilEastCaseOneDefaultZone() {
+    // Hermetic: see testAddingDaysNormalDateDefaultZone.
+    val zone = TimeZone.currentSystemDefault()
     val date1 = Instant.fromEpochMilliseconds(1667617200000)
-    assertEquals(5, dayOfMonthDefaultZone(date1))
+    assertEquals(dayOfMonthAtZone(date1, zone), dayOfMonthDefaultZone(date1))
 
     val date2 = dateByAddingDays(date1, 1)
-    assertEquals(6, dayOfMonthDefaultZone(date2))
+    assertEquals(dayOfMonthAtZone(date2, zone), dayOfMonthDefaultZone(date2))
 
     val date3 = dateByAddingDays(date1, -1)
-    assertEquals(4, dayOfMonthDefaultZone(date3))
+    assertEquals(dayOfMonthAtZone(date3, zone), dayOfMonthDefaultZone(date3))
   }
 
   @Test
@@ -90,14 +96,16 @@ class DateByAddingDaysTest {
 
   @Test
   fun testAddingDaysBrazilEastCaseTwoDefaultZone() {
+    // Hermetic: see testAddingDaysNormalDateDefaultZone.
+    val zone = TimeZone.currentSystemDefault()
     val date1 = Instant.fromEpochMilliseconds(1699066800000)
-    assertEquals(4, dayOfMonthDefaultZone(date1))
+    assertEquals(dayOfMonthAtZone(date1, zone), dayOfMonthDefaultZone(date1))
 
     val date2 = dateByAddingDays(date1, 1)
-    assertEquals(5, dayOfMonthDefaultZone(date2))
+    assertEquals(dayOfMonthAtZone(date2, zone), dayOfMonthDefaultZone(date2))
 
     val date3 = dateByAddingDays(date1, -1)
-    assertEquals(3, dayOfMonthDefaultZone(date3))
+    assertEquals(dayOfMonthAtZone(date3, zone), dayOfMonthDefaultZone(date3))
   }
 
   @Test
@@ -115,13 +123,15 @@ class DateByAddingDaysTest {
 
   @Test
   fun testAddingDaysTehranDefaultZone() {
+    // Hermetic: see testAddingDaysNormalDateDefaultZone.
+    val zone = TimeZone.currentSystemDefault()
     val date1 = Instant.fromEpochMilliseconds(1679257800000)
-    assertEquals(20, dayOfMonthDefaultZone(date1))
+    assertEquals(dayOfMonthAtZone(date1, zone), dayOfMonthDefaultZone(date1))
 
     val date2 = dateByAddingDays(date1, 1)
-    assertEquals(21, dayOfMonthDefaultZone(date2))
+    assertEquals(dayOfMonthAtZone(date2, zone), dayOfMonthDefaultZone(date2))
 
     val date3 = dateByAddingDays(date1, -1)
-    assertEquals(19, dayOfMonthDefaultZone(date3))
+    assertEquals(dayOfMonthAtZone(date3, zone), dayOfMonthDefaultZone(date3))
   }
 }

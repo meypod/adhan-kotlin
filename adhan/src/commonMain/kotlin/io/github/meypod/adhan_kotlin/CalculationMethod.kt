@@ -162,7 +162,13 @@ enum class CalculationMethod {
    * Ministry of Religious Affairs of Tunisia
    * Uses Fajr angle of 18 and Isha angle of 18
    */
-  TUNISIA;
+  TUNISIA,
+
+  /**
+   * Ministry of Islamic Affairs and Habous, Morocco
+   * Uses Fajr angle of 19 and Isha angle of 17
+   */
+  MOROCCO;
 
   /**
    * Return the CalculationParameters for the given method
@@ -311,6 +317,12 @@ enum class CalculationMethod {
 
       TUNISIA -> {
         CalculationParameters(fajrAngle = 18.0, ishaAngle = 18.0, method = this)
+      }
+
+      MOROCCO -> {
+        CalculationParameters(fajrAngle = 19.0, ishaAngle = 17.0, method = this,
+          methodAdjustments = PrayerAdjustments(dhuhr = 1)
+        )
       }
     }
 }

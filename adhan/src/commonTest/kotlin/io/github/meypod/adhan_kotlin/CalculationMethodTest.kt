@@ -5,6 +5,7 @@ import io.github.meypod.adhan_kotlin.CalculationMethod.EGYPTIAN
 import io.github.meypod.adhan_kotlin.CalculationMethod.KARACHI
 import io.github.meypod.adhan_kotlin.CalculationMethod.KUWAIT
 import io.github.meypod.adhan_kotlin.CalculationMethod.MOON_SIGHTING_COMMITTEE
+import io.github.meypod.adhan_kotlin.CalculationMethod.MOROCCO
 import io.github.meypod.adhan_kotlin.CalculationMethod.MUSLIM_WORLD_LEAGUE
 import io.github.meypod.adhan_kotlin.CalculationMethod.NORTH_AMERICA
 import io.github.meypod.adhan_kotlin.CalculationMethod.OTHER
@@ -57,6 +58,12 @@ class CalculationMethodTest {
     assertTrue { abs(params.ishaAngle - 18) <= 0.000001 }
     assertEquals(0, params.ishaInterval)
     assertEquals(MOON_SIGHTING_COMMITTEE, params.method)
+
+    params = MOROCCO.parameters
+    assertTrue { abs(params.fajrAngle - 19) <= 0.000001 }
+    assertTrue { abs(params.ishaAngle - 17) <= 0.000001 }
+    assertEquals(0, params.ishaInterval)
+    assertEquals(MOROCCO, params.method)
 
     params = NORTH_AMERICA.parameters
     assertTrue { abs(params.fajrAngle - 15) <= 0.000001 }
