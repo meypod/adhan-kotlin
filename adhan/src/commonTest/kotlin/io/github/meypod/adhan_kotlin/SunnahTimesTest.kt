@@ -5,13 +5,20 @@ import io.github.meypod.adhan_kotlin.CalculationMethod.MUSLIM_WORLD_LEAGUE
 import io.github.meypod.adhan_kotlin.CalculationMethod.NORTH_AMERICA
 import io.github.meypod.adhan_kotlin.HighLatitudeRule.MIDDLE_OF_THE_NIGHT
 import io.github.meypod.adhan_kotlin.HighLatitudeRule.SEVENTH_OF_THE_NIGHT
+import io.github.meypod.adhan_kotlin.data.CalendarUtil.add
+import io.github.meypod.adhan_kotlin.data.CalendarUtil.roundedMinute
+import io.github.meypod.adhan_kotlin.data.CalendarUtil.toUtcInstant
 import io.github.meypod.adhan_kotlin.data.DateComponents
 import io.github.meypod.adhan_kotlin.internal.TestUtils.pad
+import io.github.meypod.adhan_kotlin.model.Rounding
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.number
 import kotlinx.datetime.toLocalDateTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.time.Instant
 
 class SunnahTimesTest {
@@ -143,6 +150,48 @@ class SunnahTimesTest {
     val sunnahTimes = SunnahTimes(todayPrayers)
     assertEquals("10/25/15, 12:43 AM", stringifyAtTimezone(sunnahTimes.middleOfTheNight, zoneId))
     assertEquals("10/25/15, 2:42 AM", stringifyAtTimezone(sunnahTimes.lastThirdOfTheNight, zoneId))
+  }
+
+  @Test
+  fun testSunnahTimesHonorRounding() {
+    val coordinates = Coordinates(35.7750, -78.6336)
+    val todayComponents = DateComponents(2015, 7, 12)
+    val tomorrowComponents = DateComponents(2015, 7, 13)
+
+    data class Exact(
+      val prayers: PrayerTimes,
+      val firstThird: LocalDateTime,
+      val middle: LocalDateTime,
+      val lastThird: LocalDateTime
+    )
+
+    // Mirrors the unrounded computation in SunnahTimes.
+    fun exactSunnahTimes(params: CalculationParameters): Exact {
+      val todayPrayers = PrayerTimes(coordinates, todayComponents, params)
+      val tomorrowPrayers = PrayerTimes(coordinates, tomorrowComponents, params)
+      val nightDurationInSeconds =
+        (tomorrowPrayers.fajr - todayPrayers.sunset).inWholeSeconds
+      fun at(fraction: Double) =
+        add(todayPrayers.sunset, (nightDurationInSeconds * fraction).toInt(), DateTimeUnit.SECOND)
+      return Exact(todayPrayers, at(1.0 / 3.0), at(1.0 / 2.0), at(2.0 / 3.0))
+    }
+
+    for (rounding in listOf(Rounding.NONE, Rounding.UP)) {
+      val exact = exactSunnahTimes(NORTH_AMERICA.parameters.copy(rounding = rounding))
+      val sunnah = SunnahTimes(exact.prayers)
+      assertEquals(roundedMinute(exact.firstThird, rounding).toUtcInstant(), sunnah.firstThirdOfTheNight)
+      assertEquals(roundedMinute(exact.middle, rounding).toUtcInstant(), sunnah.middleOfTheNight)
+      assertEquals(roundedMinute(exact.lastThird, rounding).toUtcInstant(), sunnah.lastThirdOfTheNight)
+    }
+
+    // On this date rounding up and rounding to the nearest minute disagree for at least one of
+    // the three, so the test would fail if the setting were ignored.
+    val up = exactSunnahTimes(NORTH_AMERICA.parameters.copy(rounding = Rounding.UP))
+    val upSunnah = SunnahTimes(up.prayers)
+    assertNotEquals(
+      listOf(up.firstThird, up.middle, up.lastThird).map { roundedMinute(it, Rounding.NEAREST).toUtcInstant() },
+      listOf(upSunnah.firstThirdOfTheNight, upSunnah.middleOfTheNight, upSunnah.lastThirdOfTheNight)
+    )
   }
 
   private fun stringifyAtTimezone(time: Instant, zoneId: String): String {

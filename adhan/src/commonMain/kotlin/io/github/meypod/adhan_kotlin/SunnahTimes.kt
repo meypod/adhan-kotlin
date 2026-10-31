@@ -35,18 +35,22 @@ class SunnahTimes(prayerTimes: PrayerTimes, midnightMethod: MidnightMethod = Mid
     nightDuration = dawnTime.minus(prayerTimes.sunset)
 
     val nightDurationInSeconds = nightDuration.inWholeSeconds
+    val rounding = prayerTimes.calculationParameters.rounding
     firstThirdOfTheNight = roundedMinute(
-      add(prayerTimes.sunset, (nightDurationInSeconds / 3.0).toInt(), DateTimeUnit.SECOND)
+      add(prayerTimes.sunset, (nightDurationInSeconds / 3.0).toInt(), DateTimeUnit.SECOND),
+      rounding
     ).toUtcInstant()
     middleOfTheNight = roundedMinute(
-      add(prayerTimes.sunset, (nightDurationInSeconds / 2.0).toInt(), DateTimeUnit.SECOND)
+      add(prayerTimes.sunset, (nightDurationInSeconds / 2.0).toInt(), DateTimeUnit.SECOND),
+      rounding
     ).toUtcInstant()
     lastThirdOfTheNight = roundedMinute(
       add(
         prayerTimes.sunset,
         (nightDurationInSeconds * (2.0 / 3.0)).toInt(),
         DateTimeUnit.SECOND
-      )
+      ),
+      rounding
     ).toUtcInstant()
   }
 }
