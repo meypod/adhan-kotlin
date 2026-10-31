@@ -356,6 +356,22 @@ class PrayerTimesTest {
     assertEquals(19.hours, summer.maghrib - summer.sunrise)
   }
 
+  /**
+   * Between 46° and 48.56° the takdir is placed in mean solar time. At the date line the transit
+   * falls on the other side of midnight, and an unwrapped equation of time moved Fajr and Isha a
+   * whole day, putting Fajr some 22 hours after sunrise.
+   */
+  @Test
+  fun testDiyanetTakdirAtDateLine() {
+    listOf(-180.0, 179.9).forEach { longitude ->
+      listOf(DateComponents(2026, 6, 15), DateComponents(2025, 8, 1)).forEach { date ->
+        val t = PrayerTimes(Coordinates(47.0, longitude), date, CalculationMethod.TURKEY.parameters)
+        assertTrue(t.sunrise - t.fajr in 1.hours..4.hours, "fajr at $longitude $date")
+        assertTrue(t.isha - t.maghrib in 1.hours..4.hours, "isha at $longitude $date")
+      }
+    }
+  }
+
   /** Inside the polar circle the times must still be ordered, and must not throw. */
   @Test
   fun testDiyanetPolarOrdering() {

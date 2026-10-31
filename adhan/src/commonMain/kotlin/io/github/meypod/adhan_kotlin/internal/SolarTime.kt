@@ -5,6 +5,7 @@ import io.github.meypod.adhan_kotlin.data.DateComponents
 import io.github.meypod.adhan_kotlin.internal.Astronomical.approximateTransit
 import io.github.meypod.adhan_kotlin.internal.Astronomical.correctedHourAngle
 import io.github.meypod.adhan_kotlin.internal.Astronomical.correctedTransit
+import io.github.meypod.adhan_kotlin.internal.DoubleUtil.normalizeWithBound
 import kotlin.math.abs
 import kotlin.math.atan
 import kotlin.math.tan
@@ -89,7 +90,8 @@ class SolarTime(
    * it, which is what makes those published times symmetric about the solstice.
    */
   val equationOfTime: Double
-    get() = transit - (12.0 - observer.longitude / 15.0)
+    // wrapped to ±12h: near the date line the transit can fall on the other side of midnight
+    get() = normalizeWithBound(transit - (12.0 - observer.longitude / 15.0) + 12.0, 24.0) - 12.0
 
   /**
    * The time at which the sun has covered [proportion] of its descent below the horizon for
