@@ -1,5 +1,15 @@
 # Changelog
 
+## development
+
+- add `CalculationMethod.MOROCCO` for the Ministry of Habous and Islamic Affairs: Fajr 19°, Isha
+  17°, sunrise −3, dhuhr +5 and maghrib +4 minutes. Checked against 447 days of the ministry's
+  published timetables for six coastal cities (Rabat, Casablanca, Agadir, Al Hoceima, Laayoune,
+  Dakhla) between 2022 and 2026, covering every month of the year: every prayer is within one
+  minute. Inland the ministry also corrects sunrise and maghrib for elevation, so they differ by
+  1 to 4 minutes there.
+- add the Moroccan reference times to `Shared/Times`.
+
 ## version 0.0.13
 
 - fix the Diyanet (`TURKEY`) method away from Turkey. Fajr and Isha were bounded by

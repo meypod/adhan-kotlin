@@ -5,6 +5,7 @@ import io.github.meypod.adhan_kotlin.CalculationMethod.EGYPTIAN
 import io.github.meypod.adhan_kotlin.CalculationMethod.KARACHI
 import io.github.meypod.adhan_kotlin.CalculationMethod.KUWAIT
 import io.github.meypod.adhan_kotlin.CalculationMethod.MOON_SIGHTING_COMMITTEE
+import io.github.meypod.adhan_kotlin.CalculationMethod.MOROCCO
 import io.github.meypod.adhan_kotlin.CalculationMethod.MUSLIM_WORLD_LEAGUE
 import io.github.meypod.adhan_kotlin.CalculationMethod.NORTH_AMERICA
 import io.github.meypod.adhan_kotlin.CalculationMethod.OTHER
@@ -134,6 +135,7 @@ class TimingTest {
       "Singapore" -> SINGAPORE
       "Turkey" -> TURKEY
       "TurkeyEurope" -> TURKEY_EUROPE
+      "Morocco" -> MOROCCO
       else -> OTHER
     }
 

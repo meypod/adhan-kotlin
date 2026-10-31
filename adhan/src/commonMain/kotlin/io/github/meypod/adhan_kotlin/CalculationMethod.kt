@@ -162,7 +162,19 @@ enum class CalculationMethod {
    * Ministry of Religious Affairs of Tunisia
    * Uses Fajr angle of 18 and Isha angle of 18
    */
-  TUNISIA;
+  TUNISIA,
+
+  /**
+   * Ministry of Habous and Islamic Affairs, Morocco
+   * Uses a Fajr angle of 19 and an Isha angle of 17, with sunrise 3 minutes earlier, dhuhr 5 minutes
+   * later and maghrib 4 minutes later than the astronomical events.
+   *
+   * Matches the ministry's published times to within a minute along the coast. It also corrects
+   * sunrise and maghrib for each city's elevation, so in towns well above sea level (Fes, Marrakech,
+   * Oujda, Errachidia, Ouarzazate) its sunrise is 1 to 4 minutes earlier and maghrib 1 to 4 minutes
+   * later than this method gives.
+   */
+  MOROCCO;
 
   /**
    * Return the CalculationParameters for the given method
@@ -311,6 +323,18 @@ enum class CalculationMethod {
 
       TUNISIA -> {
         CalculationParameters(fajrAngle = 18.0, ishaAngle = 18.0, method = this)
+      }
+
+      MOROCCO -> {
+        CalculationParameters(
+            fajrAngle = 19.0, ishaAngle = 17.0, method = this,
+            methodAdjustments = PrayerAdjustments(
+                sunrise = -3,
+                dhuhr = 5,
+                sunset = 4,
+                maghrib = 4,
+            ),
+        )
       }
     }
 }

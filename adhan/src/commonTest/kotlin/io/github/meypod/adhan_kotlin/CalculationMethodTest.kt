@@ -5,6 +5,7 @@ import io.github.meypod.adhan_kotlin.CalculationMethod.EGYPTIAN
 import io.github.meypod.adhan_kotlin.CalculationMethod.KARACHI
 import io.github.meypod.adhan_kotlin.CalculationMethod.KUWAIT
 import io.github.meypod.adhan_kotlin.CalculationMethod.MOON_SIGHTING_COMMITTEE
+import io.github.meypod.adhan_kotlin.CalculationMethod.MOROCCO
 import io.github.meypod.adhan_kotlin.CalculationMethod.MUSLIM_WORLD_LEAGUE
 import io.github.meypod.adhan_kotlin.CalculationMethod.NORTH_AMERICA
 import io.github.meypod.adhan_kotlin.CalculationMethod.OTHER
@@ -88,6 +89,13 @@ class CalculationMethodTest {
     assertEquals(PROPORTIONAL_DEPRESSION, params.highLatitudeRule)
     assertEquals(TURKEY.parameters.methodAdjustments, params.methodAdjustments)
     assertEquals(TURKEY_EUROPE, params.method)
+
+    params = MOROCCO.parameters
+    assertTrue { abs(params.fajrAngle - 19) <= 0.000001 }
+    assertTrue { abs(params.ishaAngle - 17) <= 0.000001 }
+    assertEquals(0, params.ishaInterval)
+    assertEquals(PrayerAdjustments(sunrise = -3, dhuhr = 5, sunset = 4, maghrib = 4), params.methodAdjustments)
+    assertEquals(MOROCCO, params.method)
 
     params = OTHER.parameters
     assertTrue { abs(params.fajrAngle - 0) <= 0.000001 }
