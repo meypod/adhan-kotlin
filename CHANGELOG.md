@@ -1,6 +1,6 @@
 # Changelog
 
-## development
+## version 0.0.14
 
 - add `CalculationMethod.MOROCCO` for the Ministry of Habous and Islamic Affairs: Fajr 19°, Isha
   17°, sunrise −3, dhuhr +5 and maghrib +4 minutes. Checked against 447 days of the ministry's
