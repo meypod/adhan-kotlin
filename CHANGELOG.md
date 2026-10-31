@@ -1,5 +1,20 @@
 # Changelog
 
+## development
+
+- port the stricter polar circle validation from upstream: the hour angle iterates its Δm
+  correction as Astronomical Algorithms recommends, which moves twilight times on days the sun
+  barely reaches the angle by up to 45 minutes closer to the true value; asr is rejected when the
+  sun cannot reach its altitude; and prayer times that come out of order now throw instead of
+  being returned. Unlike upstream, the ordering check needs times to be strictly ascending rather
+  than five minutes apart, since fajr and isha legitimately sit a couple of minutes from sunrise
+  and maghrib near the polar circle, and it checks the published times after adjustments and
+  rounding.
+- an angle-based maghrib (`TEHRAN`, `JAFARI`) must now fall at least a minute before isha, or
+  sunset is used. On white nights the two previously rounded onto the same minute.
+- fix Diyanet's takdir at the date line, where Fajr and Isha were placed a day late.
+- sunnah times honor `CalculationParameters.rounding` (from upstream).
+
 ## version 0.0.14
 
 - add `CalculationMethod.MOROCCO` for the Ministry of Habous and Islamic Affairs: Fajr 19°, Isha

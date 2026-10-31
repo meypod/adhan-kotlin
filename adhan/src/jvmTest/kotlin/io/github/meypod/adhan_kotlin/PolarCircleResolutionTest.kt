@@ -129,11 +129,13 @@ class PolarCircleResolutionTest {
       return LocalDateTime(dt.year, dt.month, dt.day, dt.hour, dt.minute)
     }
 
-    assertEquals(LocalDateTime(2020, 6, 21, 0, 40), toLocalDateTimeInTz(p.fajr))
+    // Resolved to 8 July. Its sunset needs the iterated Δm correction: a single step put it at
+    // 21:36 UTC, before 9 July's 22:18 while the days are shortening.
+    assertEquals(LocalDateTime(2020, 6, 21, 0, 48), toLocalDateTimeInTz(p.fajr))
     assertEquals(LocalDateTime(2020, 6, 21, 0, 54), toLocalDateTimeInTz(p.sunrise))
     assertEquals(LocalDateTime(2020, 6, 21, 12, 55), toLocalDateTimeInTz(p.dhuhr))
     assertEquals(LocalDateTime(2020, 6, 21, 17, 49), toLocalDateTimeInTz(p.asr))
-    assertEquals(LocalDateTime(2020, 6, 21, 23, 36), toLocalDateTimeInTz(p.maghrib))
-    assertEquals(LocalDateTime(2020, 6, 21, 23, 51), toLocalDateTimeInTz(p.isha))
+    assertEquals(LocalDateTime(2020, 6, 22, 0, 30), toLocalDateTimeInTz(p.maghrib))
+    assertEquals(LocalDateTime(2020, 6, 22, 0, 37), toLocalDateTimeInTz(p.isha))
   }
 }

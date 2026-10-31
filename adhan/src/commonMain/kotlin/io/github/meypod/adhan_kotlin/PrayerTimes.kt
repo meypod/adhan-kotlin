@@ -106,6 +106,7 @@ data class PrayerTimes(
     }
 
     var fiveHourFloorApplied = false
+    var asrClamped = false
     // Diyanet floors both the day and the night at five hours, placing sunrise and maghrib
     // symmetrically about Ogle. This defines them outright inside the polar circle, where the
     // sun may not rise or set at all, so it is applied before anything derived from them.
@@ -182,12 +183,14 @@ data class PrayerTimes(
         // offsets chosen so the comparison holds once each prayer has its own adjustment applied
         val asrFloor = add(transit, dhuhrShiftForAsr - asrShift, DateTimeUnit.MINUTE)
         val asrCeiling = add(sunsetComponents, maghribShiftForAsr - asrShift, DateTimeUnit.MINUTE)
-        tempAsr = when {
+        val clampedAsr = when {
           solarTime.maximumAltitude < 0.0 || tempAsr == null -> asrFloor
           tempAsr.before(asrFloor) -> asrFloor
           tempAsr.after(asrCeiling) -> asrCeiling
           else -> tempAsr
         }
+        asrClamped = clampedAsr != tempAsr
+        tempAsr = clampedAsr
       }
 
       // get night length
@@ -255,7 +258,7 @@ data class PrayerTimes(
         else -> nightPortionFajr
       }
 
-      if (tempFajr == null) {
+      if (tempFajr == null || !timesInOrder(tempFajr, tempSunrise)) {
         tempFajr = safeFajr ?: nightPortionFajr
       } else if (safeFajr != null && tempFajr.before(safeFajr)) {
         tempFajr = safeFajr
@@ -312,7 +315,7 @@ data class PrayerTimes(
           else -> nightPortionIsha
         }
 
-        if (tempIsha == null) {
+        if (tempIsha == null || !timesInOrder(tempMaghrib, tempIsha)) {
           tempIsha = safeIsha ?: nightPortionIsha
         } else if (safeIsha != null && tempIsha.after(safeIsha)) {
           tempIsha = safeIsha
@@ -325,9 +328,11 @@ data class PrayerTimes(
         )
         if (timeComponents != null) {
           val angleBasedMaghrib = timeComponents.dateComponents(dateComponents)
+          // At least a minute before isha, or the two would round onto the same minute. This
+          // happens on white nights, where isha is bounded to just after the angle.
           if (
             tempSunset.before(angleBasedMaghrib) &&
-            tempIsha.after(angleBasedMaghrib)
+            tempIsha.after(add(angleBasedMaghrib, 1, DateTimeUnit.MINUTE))
           ) {
             tempMaghrib = angleBasedMaghrib
           }
@@ -397,6 +402,16 @@ data class PrayerTimes(
         rounding = calculationParameters.rounding
       ).toUtcInstant()
     }
+
+    // Final ordering guard: if any consecutive pair of times is out of order, the result is in
+    // an invalid state we cannot handle, most likely due to polar circle issues. Invalidate all
+    // times so callers receive a clean all-or-nothing result. This runs on the published times,
+    // since adjustments and rounding can collapse two times seconds apart onto the same minute.
+    // An asr clamped to dhuhr or maghrib is allowed to coincide with it: Diyanet publishes that.
+    val asrInOrder = if (asrClamped) dhuhr <= asr && asr <= maghrib else dhuhr < asr && asr < maghrib
+    if (!(fajr < sunrise && sunrise < dhuhr && asrInOrder && maghrib < isha)) {
+      throw IllegalStateException()
+    }
   }
 
   fun currentPrayer(instant: Instant): Prayer {
@@ -450,6 +465,17 @@ data class PrayerTimes(
   }
 
   companion object {
+    /**
+     * Whether [b] falls strictly after [a]. Upstream also demands a five minute gap, but near the
+     * polar circle the night can be a quarter of an hour long, and fajr and isha legitimately sit
+     * a couple of minutes from sunrise and maghrib, which is where [PolarCircleResolution.AqrabBalad]
+     * lands by construction.
+     */
+    internal fun timesInOrder(a: LocalDateTime?, b: LocalDateTime?): Boolean {
+      if (a == null || b == null) { return false }
+      return b > a
+    }
+
     private fun seasonAdjustedMorningTwilight(
       latitude: Double, day: Int, year: Int, sunrise: LocalDateTime
     ): LocalDateTime {

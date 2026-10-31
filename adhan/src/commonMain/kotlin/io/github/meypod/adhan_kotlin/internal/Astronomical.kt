@@ -4,6 +4,7 @@ import io.github.meypod.adhan_kotlin.Coordinates
 import io.github.meypod.adhan_kotlin.internal.DoubleUtil.closestAngle
 import io.github.meypod.adhan_kotlin.internal.DoubleUtil.normalizeWithBound
 import io.github.meypod.adhan_kotlin.internal.DoubleUtil.unwindAngle
+import kotlin.math.abs
 import kotlin.math.acos
 import kotlin.math.asin
 import kotlin.math.cos
@@ -269,31 +270,39 @@ internal object Astronomical {
     Θ0: Double, α2: Double, α1: Double, α3: Double, δ2: Double, δ1: Double, δ3: Double,
     interpolateDeclination: Boolean = true
   ): Double {
-    /* Equation from page Astronomical Algorithms 102 */
+    /* Equation from Astronomical Algorithms page 102 */
     val Lw = coordinates.longitude * -1
     val term1 = sin(h0.toRadians()) - sin(coordinates.latitude.toRadians()) * sin(δ2.toRadians())
     val term2 = cos(coordinates.latitude.toRadians()) * cos(δ2.toRadians())
     val H0: Double = acos(term1 / term2).toDegrees()
-    val m = if (afterTransit) m0 + H0 / 360 else m0 - H0 / 360
-    val θ = unwindAngle(Θ0 + 360.985647 * m)
-    val α = unwindAngle(
-      interpolateAngles( /* value */
-        α2,  /* previousValue */α1,  /* nextValue */α3,  /* factor */m
+    var m = if (afterTransit) m0 + H0 / 360 else m0 - H0 / 360
+
+    // Astronomical Algorithms page 103 notes that the correction value of Δm
+    // should be ±0.01 and to recalculate with the corrected m value if needed.
+    // Iteration is capped at 10 to account for situations where convergence doesn't occur.
+    for (i in 0 until 10) {
+      val θ = unwindAngle(Θ0 + 360.985647 * m)
+      val α = unwindAngle(
+        interpolateAngles( /* value */
+          α2,  /* previousValue */α1,  /* nextValue */α3,  /* factor */m
+        )
       )
-    )
-    val δ = if (interpolateDeclination) {
-      interpolate( /* value */δ2,  /* previousValue */δ1,  /* nextValue */δ3,  /* factor */m)
-    } else {
-      δ2
+      val δ = if (interpolateDeclination) {
+        interpolate( /* value */δ2,  /* previousValue */δ1,  /* nextValue */δ3,  /* factor */m)
+      } else {
+        δ2
+      }
+      val H = θ - Lw - α
+      val h = altitudeOfCelestialBody( /* observerLatitude */coordinates.latitude,  /* declination */
+        δ,  /* localHourAngle */H
+      )
+      val dmDenominator = 360 * cos(δ.toRadians()) * cos(coordinates.latitude.toRadians()) * sin(H.toRadians())
+      if (dmDenominator == 0.0) { return Double.NaN }
+      val Δm = (h - h0) / dmDenominator
+      m += Δm
+      if (abs(Δm) <= 0.01) { break }
     }
-    val H = θ - Lw - α
-    val h = altitudeOfCelestialBody( /* observerLatitude */coordinates.latitude,  /* declination */
-      δ,  /* localHourAngle */H
-    )
-    val term3 = h - h0
-    val term4 = 360 * cos(δ.toRadians()) * cos(coordinates.latitude.toRadians()) * sin(H.toRadians())
-    val Δm = term3 / term4
-    return (m + Δm) * 24
+    return m * 24
   }
 
   /**
